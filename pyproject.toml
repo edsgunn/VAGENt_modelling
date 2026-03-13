@@ -1,0 +1,190 @@
+# ============================================================================
+# VAGEN - Multi-Turn RL Framework for VLM Agents
+# ============================================================================
+# This pyproject.toml consolidates all dependency version constraints from:
+#   - VAGEN's original setup.py
+#   - The verl fork's setup.py (JamesKrW/verl, branch vagen-lite, v0.6.1)
+#   - The verl install script (scripts/install_vllm_sglang_mcore.sh)
+#   - Actual import analysis across the VAGEN codebase
+#
+# INSTALL (Linux + CUDA):
+#   cd VAGEN
+#   uv venv --python 3.12
+#   source .venv/bin/activate
+#   uv pip install -e ".[inference]"
+#   cd verl && uv pip install --no-deps -e . && cd ..
+#
+# INSTALL (dev/read-only, e.g. macOS — no GPU packages):
+#   uv pip install -e ".[dev]"
+# ============================================================================
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# ============================================================================
+# Project metadata
+# ============================================================================
+[project]
+name = "vagen"
+version = "26.2.5"
+description = "VAGEN: Reinforcing World Model Reasoning for Multi-Turn VLM Agents"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10,<3.13"
+
+authors = [
+    {name = "Kangrui Wang"},
+    {name = "Pingyue Zhang"},
+    {name = "Zihan Wang"},
+    {name = "Yaning Gao"},
+    {name = "Linjie Li"},
+]
+
+# ---------------------------------------------------------------------------
+# Core dependencies
+# ---------------------------------------------------------------------------
+# These are the union of VAGEN's direct deps + verl's transitive deps,
+# with versions pinned to known-compatible ranges.
+# verl itself is installed separately as a submodule (pip install --no-deps -e verl/).
+dependencies = [
+    # === PyTorch ecosystem ===
+    # Pinned by verl's sglang extras and flash-attn wheel compatibility
+    "torch==2.8.0",
+    "torchdata>=0.10.0",
+
+    # === Numerics ===
+    "numpy>=1.26.0,<2.0.0",        # verl: numpy<2.0.0
+    "pandas>=2.0.0",
+    "pyarrow>=19.0.0",              # verl: pyarrow>=19.0.0
+
+    # === HuggingFace ecosystem ===
+    "transformers[hf_xet]>=4.51.0", # verl install script
+    "accelerate>=1.0.0",
+    "datasets>=3.0.0",
+    "peft>=0.14.0",
+    "huggingface_hub>=0.25.0",
+    "hf-transfer>=0.1.0",
+    "trl==0.26.2",                  # VAGEN README pin (verl's own pin is <=0.9.6 but outdated)
+
+    # === Config / CLI ===
+    "omegaconf>=2.3.0",
+    "hydra-core>=1.3.0",
+    "packaging>=20.0",
+
+    # === Distributed compute ===
+    "ray[default]>=2.41.0",         # verl: ray>=2.41.0
+
+    # === Data structures ===
+    "tensordict>=0.8.0,<=0.10.0,!=0.9.0",  # verl hard constraint
+
+    # === Environments ===
+    "gymnasium>=1.0.0",
+    "gymnasium[toy-text]",
+    "gym-sokoban",                  # legacy gym-based package (Sokoban env)
+
+    # === Image processing ===
+    "Pillow>=10.0.0",
+    "qwen-vl-utils>=0.0.8",        # for Qwen2.5-VL processor
+
+    # === Logging & monitoring ===
+    "wandb>=0.19.0",
+    "tensorboard>=2.14.0",
+    "tqdm>=4.60.0",
+
+    # === Serialization / misc (verl deps) ===
+    "dill>=0.3.0",
+    "pybind11>=2.10.0",
+    "pylatexenc>=2.0",
+    "codetiming>=1.4.0",
+
+    # === Web / serving ===
+    "uvicorn<0.41",                 # VAGEN known issue: uvicorn>=0.41 breaks sglang workers
+    "nvidia-ml-py>=12.560.30",
+    "fastapi[standard]>=0.115.0",
+    "optree>=0.13.0",
+    "pydantic>=2.9",
+    "grpcio>=1.62.1",
+]
+
+# ---------------------------------------------------------------------------
+# Optional dependency groups
+# ---------------------------------------------------------------------------
+[project.optional-dependencies]
+
+# GPU acceleration (kernel optimisations)
+# NOTE: flash-attn must be installed SEPARATELY after torch is available:
+#   pip install flash-attn --no-build-isolation   (builds from source, works on aarch64)
+#   OR download a pre-built wheel from https://github.com/Dao-AILab/flash-attention/releases
+gpu = [
+    "flashinfer-python==0.5.0",     # must match sglang 0.5.5 requirement
+    "liger-kernel",
+]
+
+# SGLang inference backend (used by all VAGEN training scripts)
+sglang = [
+    "sglang[all]==0.5.5",           # verl setup.py pin; sgl-kernel 0.3.21 has aarch64 support
+    "torch-memory-saver",
+]
+
+# vLLM inference backend (alternative to sglang — MUTUALLY EXCLUSIVE)
+# sglang and vllm have conflicting transitive deps (outlines-core, xgrammar)
+# and cannot be installed together. Use vagen[gpu,vllm] instead of vagen[inference].
+vllm = [
+    "vllm==0.11.0",                 # verl install script pin
+]
+
+# GPU + SGLang (standard VAGEN training setup)
+# All VAGEN training scripts use sglang. For vllm, use: uv pip install -e ".[gpu,vllm]"
+inference = [
+    "vagen[gpu]",
+    "vagen[sglang]",
+]
+
+# Spatial gym environments (optional)
+spatial = [
+    "matplotlib",
+    "scipy",
+]
+
+# Development & testing
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pre-commit",
+    "ruff",
+    "py-spy",
+    "fire",                         # used in env test scripts
+]
+
+# Documentation
+docs = [
+    "mkdocs-material>=9.0",
+    "pymdown-extensions>=10.0",
+]
+
+# ============================================================================
+# Setuptools configuration
+# ============================================================================
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["vagen*"]
+
+[tool.setuptools.package-data]
+vagen = [
+    "configs/*.yaml",
+    "configs/**/*.yaml",
+]
+
+# ============================================================================
+# Ruff linter/formatter
+# ============================================================================
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "UP", "B", "I"]
+ignore = ["F405", "F403", "E731", "B007", "UP032", "UP045", "UP035"]
