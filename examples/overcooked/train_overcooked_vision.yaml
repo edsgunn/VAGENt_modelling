@@ -1,0 +1,10 @@
+envs:
+  - name: Overcooked
+    n_envs: 10000
+    data_source: overcooked
+    seed: [1,10000,1]
+    max_turns: 5
+    response_length_per_turn: 512
+    config:
+      render_mode: vision
+      layout_name: cramped_room
