@@ -72,8 +72,10 @@ def run_ppo(config, task_runner_class=None) -> None:
         ray_init_kwargs = OmegaConf.create({**ray_init_kwargs, "runtime_env": runtime_env})
         print(f"ray init kwargs: {ray_init_kwargs}")
         ray.init(**OmegaConf.to_container(ray_init_kwargs))
+        print("Ray initialization completed successfully.")
 
     if task_runner_class is None:
+        print("Creating TaskRunner remote class...")
         task_runner_class = ray.remote(num_cpus=1)(TaskRunner)  # please make sure main_task is not scheduled on head
 
     # Create a remote instance of the TaskRunner class, and
@@ -92,8 +94,12 @@ def run_ppo(config, task_runner_class=None) -> None:
         )
         runner = task_runner_class.options(runtime_env={"nsight": nsight_options}).remote()
     else:
+        print("Creating TaskRunner instance...")
         runner = task_runner_class.remote()
+    
+    print("Starting TaskRunner.run remotely...")
     ray.get(runner.run.remote(config))
+    print("TaskRunner.run completed.")
 
     # [Optional] get the path of the timeline trace file from the configuration, default to None
     # This file is used for performance analysis

@@ -1,3 +1,5 @@
+import os
+os.environ['SDL_VIDEODRIVER'] = 'dummy'
 import numpy as np
 import asyncio
 from typing import Any, Dict, Tuple, List
